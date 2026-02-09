@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/cricGuard-frontend-web/static/css/main.f629ae52.css",
+    "main.js": "/cricGuard-frontend-web/static/js/main.0f0a9aca.js",
+    "static/js/453.48ebd619.chunk.js": "/cricGuard-frontend-web/static/js/453.48ebd619.chunk.js",
+    "index.html": "/cricGuard-frontend-web/index.html",
+    "main.f629ae52.css.map": "/cricGuard-frontend-web/static/css/main.f629ae52.css.map",
+    "main.0f0a9aca.js.map": "/cricGuard-frontend-web/static/js/main.0f0a9aca.js.map",
+    "453.48ebd619.chunk.js.map": "/cricGuard-frontend-web/static/js/453.48ebd619.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.f629ae52.css",
+    "static/js/main.0f0a9aca.js"
+  ]
+}
