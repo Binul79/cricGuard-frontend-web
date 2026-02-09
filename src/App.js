@@ -28,6 +28,50 @@ const LoadingSpinner = () => (
   </div>
 );
 
+// --- Sub-Component: Error Modal ---
+const ErrorModal = ({ isOpen, message, confidence, onClose }) => {
+  if (!isOpen) return null;
+
+  const confidencePercent = confidence ? (confidence * 100).toFixed(1) : 'N/A';
+
+  return (
+    <div style={styles.modalOverlay}>
+      <div style={styles.modalContent}>
+        <div style={styles.errorHeader}>
+          <AlertTriangle size={48} color="#ef4444" style={{ marginBottom: '15px' }} />
+          <h2 style={{ color: '#991b1b', margin: '0 0 10px 0' }}>Analysis Failed</h2>
+          <p style={{ color: '#6b7280', margin: '0', fontSize: '0.95rem' }}>Low confidence detection</p>
+        </div>
+
+        <div style={styles.confidenceBox}>
+          <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#dc2626' }}>{confidencePercent}%</span>
+          <span style={{ fontSize: '0.9rem', color: '#6b7280', marginLeft: '10px' }}>Confidence</span>
+        </div>
+
+        <div style={styles.errorMessage}>
+          <p style={{ color: '#374151', lineHeight: '1.6', margin: 0 }}>
+            {message}
+          </p>
+        </div>
+
+        <div style={styles.suggestionsBox}>
+          <h4 style={{ marginTop: 0, color: '#1f2937' }}>Tips for better results:</h4>
+          <ul style={{ color: '#6b7280', paddingLeft: '20px', margin: '10px 0 0 0' }}>
+            <li>Ensure the bowler is clearly visible in the frame</li>
+            <li>Capture the delivery stride or release point</li>
+            <li>Use good lighting and avoid shadows</li>
+            <li>Fill most of the frame with the bowling action</li>
+          </ul>
+        </div>
+
+        <button onClick={onClose} style={styles.closeBtn} className="close-btn">
+          Try Another Image
+        </button>
+      </div>
+    </div>
+  );
+};
+
 function App() {
   // Navigation State
   const [screen, setScreen] = useState('home'); // 'home', 'upload', 'results'
@@ -39,6 +83,8 @@ function App() {
   const [model, setModel] = useState('mobilenet');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -75,10 +121,38 @@ function App() {
         fileToAnalyze = await captureVideoFrame();
       }
       const data = await analyzeBowling(fileToAnalyze, model);
+
+      // 1. Check for Backend Error (Confidence Guardrail)
+      if (data.status === 'error') {
+        setError({
+          message: data.message,
+          confidence: data.confidence
+        });
+        setShowErrorModal(true);
+        setResult(null);
+        return;
+      }
+
+      // 2. Double-Check Confidence on Frontend (Safety Net)
+      if (data.confidence < 0.50) {
+        setError({
+          message: "Image not recognized as a valid bowling action. Please ensure the player is clearly visible and in a proper bowling posture.",
+          confidence: data.confidence
+        });
+        setShowErrorModal(true);
+        setResult(null);
+        return;
+      }
+
+      // 3. ONLY if both checks pass, show the results
       setResult(data);
       setScreen('results');
     } catch (err) {
-      alert("Analysis failed. Ensure backend is running.");
+      setError({
+        message: "Analysis failed. Please ensure the backend is running and try again.",
+        confidence: 0
+      });
+      setShowErrorModal(true);
     } finally {
       setLoading(false);
     }
@@ -111,6 +185,12 @@ function App() {
   if (screen === 'upload') {
     return (
       <div style={styles.container}>
+        <ErrorModal
+          isOpen={showErrorModal}
+          message={error?.message}
+          confidence={error?.confidence}
+          onClose={() => setShowErrorModal(false)}
+        />
         <button onClick={() => setScreen('home')} style={styles.backBtn} className="back-btn"><Home size={18} /> Home</button>
         <div style={styles.mainGrid}>
           <section style={styles.card} className="card">
@@ -183,10 +263,16 @@ function App() {
 
             <div style={styles.feedbackBox}>
               <h4>Expert Feedback:</h4>
-              <p>{isSafe
-                ? "The bowling action shows optimal trunk alignment and front-foot stability. Injury risk is currently low."
-                : "Warning: High lateral trunk flexion or abnormal arm path detected. Suggest corrective coaching to prevent lumbar stress fractures."}
-              </p>
+              {result.confidence > 0.70 ? (
+                <p>{isSafe
+                  ? "The bowling action shows optimal trunk alignment and front-foot stability. Injury risk is currently low."
+                  : "Warning: High lateral trunk flexion or abnormal arm path detected. Suggest corrective coaching to prevent lumbar stress fractures."}
+                </p>
+              ) : (
+                <p style={{ color: '#6b7280', fontStyle: 'italic' }}>
+                  Analysis completed with moderate confidence. Results should be verified by a professional coach.
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -463,6 +549,76 @@ const styles = {
     borderTop: '2px solid transparent',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite'
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backdropFilter: 'blur(4px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000
+  },
+  modalContent: {
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    borderRadius: '20px',
+    padding: '40px',
+    maxWidth: '500px',
+    width: '90%',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2)',
+    border: '1px solid rgba(255, 255, 255, 0.3)',
+    animation: 'slideIn 0.3s ease'
+  },
+  errorHeader: {
+    textAlign: 'center',
+    borderBottom: '2px solid #fee2e2',
+    paddingBottom: '20px',
+    marginBottom: '25px'
+  },
+  confidenceBox: {
+    backgroundColor: '#fef2f2',
+    border: '2px solid #fecaca',
+    borderRadius: '15px',
+    padding: '20px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: '25px'
+  },
+  errorMessage: {
+    backgroundColor: '#f8fafc',
+    padding: '15px',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    borderLeft: '4px solid #ef4444'
+  },
+  suggestionsBox: {
+    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+    padding: '15px',
+    borderRadius: '12px',
+    marginBottom: '25px',
+    border: '1px solid rgba(59, 130, 246, 0.1)'
+  },
+  closeBtn: {
+    width: '100%',
+    padding: '14px',
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: '1rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: '0 6px 20px rgba(16, 185, 129, 0.4)'
+    }
   }
 };
 

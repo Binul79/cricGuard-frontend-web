@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // 1. REPLACE this with your actual Hugging Face Space URL
-const API_URL = 'https://your-username-cricGuard.hf.space';
+const API_URL = 'https://binul19-cricguard.hf.space';
 
 export const analyzeBowling = async (file, modelType) => {
     const formData = new FormData();
@@ -18,6 +18,7 @@ export const analyzeBowling = async (file, modelType) => {
             timeout: 60000
         });
 
+        // Return the full response, including status field from backend
         return response.data;
     } catch (error) {
         console.error("Cloud Analysis Error:", error);
